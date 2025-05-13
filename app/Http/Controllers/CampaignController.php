@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
-use App\Models\Payout;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,24 +31,30 @@ class CampaignController extends Controller
             'end_date' => 'required',
         ]);
         try {
-            DB::transaction(function () use($validated) {
+            DB::transaction(function () use ($validated) {
                 Campaign::create($validated);
             });
-
             return response()->json(["success" => true], 201);
+        } catch (Exception $exception) {
+            Log::error('Transaction failed: ' . $exception->getMessage());
 
-        } catch (Exception $e) {
-            Log::error('Transaction failed: ' . $e->getMessage());
-
-            return response()->json(["success" => false], 500);
+            return response()->json(["success" => false, 'error' => $exception->getMessage()], 500);
         }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
+        $campaign = Campaign::find($id);
+        if (!$campaign) {
+            return response()->json(["success" => false, 'error' => 'Campaign not found.'], 404);
+        }
+        return response()->json([
+            "success" => true,
+            'campaign' => $campaign
+        ], 200);
     }
 
     /**

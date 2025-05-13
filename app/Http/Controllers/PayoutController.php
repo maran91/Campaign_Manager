@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payout;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PayoutController extends Controller
 {
@@ -21,19 +23,34 @@ class PayoutController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-
+            'campaign_id' => 'required',
+            'country' => 'required',
+            'amount' => 'required',
         ]);
-        Payout::create($validated);
-
-        return response()->json("Payout created successfully!", 201);
+        try {
+            DB::transaction(function () use ($validated) {
+                Payout::create($validated);
+            });
+            return response()->json(['success' => true], 201);
+        } catch (Exception $exception) {
+            if ($exception->getCode() == 23000) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A payout for this country already exists in this specified campaign.'
+                ], 400);
+            }
+            return response()->json(["success" => false, 'error' => $exception->getMessage()], 500);
+        }
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
-        //
+        $payouts = Payout::where('campaign_id', $id)->get();
+
+        return response()->json(['success' => true, 'payouts' => $payouts]);
     }
 
     /**
